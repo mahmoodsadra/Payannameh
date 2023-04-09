@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 import networkx as nx
 import sqlite3 
 import matplotlib.pyplot as plt
+from scipy.sparse import csr_matrix
 
 from itertools import islice
 def sdk_shortest_paths(nx,G, source, target, k):
@@ -40,29 +41,37 @@ def sdGet_ODNumber_Matrix(NodeODCount,FilePathToSave = ""):
         df.to_excel(FilePathToSave, index=False)
     return ODNumber_Matrix
 #################################################################
-def sdGet_DeltaOD_Matrix(G,ODNumber_Matrix,All_KshortestPathList,ODCount):
+def sdGet_DeltaOD_Matrix(G,ODNumber_Matrix,All_KshortestPathList,ODCount):#کا نشان دهنده تعداد مسیر کوتاهی است که برای هر زوج محاسبه کرده ایم 
     n,m = np.shape(ODNumber_Matrix)
     PathCount = len(All_KshortestPathList )
-    DeltaOD_Matrix = np.zeros([ODCount,len(All_KshortestPathList)],dtype=int)
+    # Creating DeltaOD_Matrix as sparse matrix
+    DeltaOD_Matrix = csr_matrix((ODCount, len(All_KshortestPathList)), 
+                              dtype = int)   
     for ODNumber in range(1,ODCount+1):
         i, j = np.where(ODNumber_Matrix == ODNumber)
         ONode = i + 1
         DNode = j + 1
-        for PathNum in range(1,PathCount +1):
-            if All_KshortestPathList[PathNum-1][0] == ONode and All_KshortestPathList[PathNum-1][len(All_KshortestPathList[PathNum-1])-1] == DNode:
-                DeltaOD_Matrix[ODNumber-1,PathNum-1] = 1
+        #گرفتن اندیس تمام مسیرهایی که ابتدای آن نود ابتدای این زوج باشد و انتهای آن هم نود انتهای این زوج
+        all_indexes = [a for a in range(len(All_KshortestPathList)) if All_KshortestPathList[a][0]==ONode 
+                      and All_KshortestPathList[a][len(All_KshortestPathList[a])-1]==DNode ]
+        for g in range(len(all_indexes)):
+             DeltaOD_Matrix[ODNumber-1,all_indexes[g]] = 1        
+
     return DeltaOD_Matrix
+#--------------------------------------------------------------------------
+
 #################################################################
 def sdGet_DeltaLink_Matrix(G,LinksList,All_KshortestPathList):
     LinkCount = len(LinksList) 
     PathCount = len(All_KshortestPathList )
-    DeltaLinkMat = np.zeros([LinkCount,len(All_KshortestPathList)],dtype=int)
+    #DeltaLinkMat = np.zeros([LinkCount,len(All_KshortestPathList)],dtype=int)
+    DeltaLinkMat = csr_matrix((LinkCount, len(All_KshortestPathList)),dtype = int)    
     for LinkNumber in range(1,LinkCount+1):
-        for PathNum in range(1,PathCount +1):
- # کنترل اینکه زیر رشته تشکیل شده از ابتدا و انتهای لینک در داخل رشته تشکلیل شده از نودهای متوالی یک مسیر وجود دارد یا خیر            
+            # کنترل اینکه زیر رشته تشکیل شده از ابتدا و انتهای لینک در داخل رشته تشکلیل شده از نودهای متوالی یک مسیر وجود دارد یا خیر            
             strtmp = str(LinksList[LinkNumber-1][0]) + str(LinksList[LinkNumber-1][1])
-            if (''.join(map(str,All_KshortestPathList[PathNum-1]) )).find(strtmp) != -1:
-                DeltaLinkMat[LinkNumber-1,PathNum-1] = 1
+            all_indexes = [a for a in range(len(All_KshortestPathList)) if (''.join(map(str,All_KshortestPathList[a]) )).find(strtmp)!= -1]
+            for g in range(len(all_indexes)):
+                DeltaLinkMat[LinkNumber-1,all_indexes[g]] = 1
     return  DeltaLinkMat     
 #################################################################
 #----------رسم گراف شبکه----
@@ -82,4 +91,8 @@ def sdDrawGraph(nx,G,LinkLabel = 'link_id'):
 #دیدن لیست کل جداول دیتابیس
 #cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
 #print(cur.fetchall())
+
+#دیدن تمام المانهای داخل ماتریس اسپارس
+
+#DeltaOD_Matrix.toarray()
 
